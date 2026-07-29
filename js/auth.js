@@ -6,53 +6,86 @@ function getAccessToken() {
   );
 }
 
-function redirectToAccessGate() {
-  const returnUrl = encodeURIComponent(window.location.href);
+function saveAccessToken(token) {
+  sessionStorage.setItem(
+    window.AUTH_CONFIG.TOKEN_STORAGE_KEY,
+    token
+  );
+}
 
-  window.location.href =
-    `${window.AUTH_CONFIG.LOGIN_URL}` +
-    `?app=${encodeURIComponent(window.AUTH_CONFIG.APP_CODE)}` +
-    `&return_url=${returnUrl}`;
+function clearAccessToken() {
+  sessionStorage.removeItem(
+    window.AUTH_CONFIG.TOKEN_STORAGE_KEY
+  );
+}
+
+function redirectToAccessGate() {
+  const gatewayUrl = new URL(
+    window.AUTH_CONFIG.ACCESS_GATE_URL
+  );
+
+  gatewayUrl.searchParams.set(
+    "app",
+    window.AUTH_CONFIG.APP_CODE
+  );
+
+  window.location.replace(gatewayUrl.toString());
+}
+
+function readTokenFromHash() {
+  const hash = window.location.hash.replace(/^#/, "");
+
+  if (!hash) {
+    return null;
+  }
+
+  const hashParams = new URLSearchParams(hash);
+
+  const token = hashParams.get("access_token");
+  const appCode = hashParams.get("app");
+
+  if (!token) {
+    return null;
+  }
+
+  if (appCode !== window.AUTH_CONFIG.APP_CODE) {
+    return null;
+  }
+
+  saveAccessToken(token);
+
+  window.history.replaceState(
+    {},
+    document.title,
+    window.location.pathname + window.location.search
+  );
+
+  return token;
 }
 
 function requireAuthentication() {
-  const url = new URL(window.location.href);
-  const tokenFromUrl = url.searchParams.get("access_token");
+  const tokenFromGateway = readTokenFromHash();
 
-  if (tokenFromUrl) {
-    sessionStorage.setItem(
-      window.AUTH_CONFIG.TOKEN_STORAGE_KEY,
-      tokenFromUrl
-    );
-
-    url.searchParams.delete("access_token");
-    window.history.replaceState({}, "", url.toString());
+  if (tokenFromGateway) {
+    return true;
   }
 
-  if (!getAccessToken()) {
-    redirectToAccessGate();
-    return false;
+  const storedToken = getAccessToken();
+
+  if (storedToken) {
+    return true;
   }
 
-  return true;
-}
-
-function authHeaders(extraHeaders = {}) {
-  const token = getAccessToken();
-
-  return {
-    ...extraHeaders,
-    Authorization: `Bearer ${token}`
-  };
+  redirectToAccessGate();
+  return false;
 }
 
 window.OSE_AUTH = {
   getAccessToken,
-  requireAuthentication,
+  saveAccessToken,
+  clearAccessToken,
   redirectToAccessGate,
-  authHeaders
+  requireAuthentication
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-  window.OSE_AUTH.requireAuthentication();
-});
+window.OSE_AUTH.requireAuthentication();
