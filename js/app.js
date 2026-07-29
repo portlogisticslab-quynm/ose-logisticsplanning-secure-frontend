@@ -8,16 +8,28 @@ const EXAMPLE_XLSX_B64 = "UEsDBBQABgAIAAAAIQDg8KTUmAEAAOsKAAATAAgCW0NvbnRlbnRfVH
 const state = { glpk:null, solverReady:false, data:null, sourceName:"", lp:null, milp:null, current:null, validation:[], sensitivity:[], animation:{playing:false,t:0,requestId:null,last:null,particles:[]} };
 const charts = {};
 const modeColors = {Road:"#808080",Rail:"#1d9b48",Water:"#2457d6",Sea:"#00aeb8"};
-
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), substatusEl=$("substatus"), fileInput=$("fileInput");
-
 function setStatus(message,type=""){statusEl.textContent=message;statusEl.className=`status ${type}`;}
 function logValidation(line){state.validation.push(line);$("validationLog").textContent=state.validation.join("\n");}
-function enableDataControls(enabled){["validateButton","runSensitivityButton"].forEach(id=>$(id).disabled=!enabled); updateSolveButtons();}
-function updateSolveButtons(){const enabled=!!state.data&&state.solverReady;["runLPButton","runMILPButton","runBothButton"].forEach(id=>$(id).disabled=!enabled);}
-function enableResultControls(enabled){["exportExcelButton","exportPngButton","playButton","resetAnimButton","speedInput"].forEach(id=>$(id).disabled=!enabled);}
+function enableDataControls(enabled){["validateButton","runSensitivityButton"].forEach(id=>$(id).disabled=!enabled);updateSolveButtons();}
+function updateSolveButtons() {
+  const authenticated =
+    window.OSE_AUTH &&
+    typeof window.OSE_AUTH.getAccessToken === "function" &&
+    !!window.OSE_AUTH.getAccessToken();
 
+  const enabled = !!state.data && authenticated;
+
+  [
+    "runLPButton",
+    "runMILPButton",
+    "runBothButton"
+  ].forEach(id => {
+    $(id).disabled = !enabled;
+  });
+}
+function enableResultControls(enabled){["exportExcelButton","exportPngButton","playButton","resetAnimButton","speedInput"].forEach(id=>$(id).disabled=!enabled);}
 // Attach Import Excel immediately; it does not depend on GLPK.
 $("importButton").addEventListener("click",()=>{fileInput.value="";fileInput.click();});
 fileInput.addEventListener("change",async event=>{const file=event.target.files[0];if(!file)return;try{if(typeof XLSX==="undefined")throw new Error("SheetJS did not load. Check the Internet connection.");setStatus(`Reading ${file.name}…`);const buffer=await file.arrayBuffer();const wb=XLSX.read(buffer,{type:"array",cellDates:true});const sheets=workbookToSheets(wb);loadData(sheets,file.name);}catch(error){setStatus(`Import error: ${error.message}`,"error");}});
@@ -66,8 +78,88 @@ function isAllowed(rows,from,to){return rows.some(r=>r.FromLevel===from&&r.ToLev
 
 $("validateButton").addEventListener("click",()=>{try{state.validation=[];validateData(state.data,$("enforceEchelon").checked);setStatus("Validation completed successfully.","success");}catch(error){setStatus(error.message,"error");logValidation(`ERROR: ${error.message}`);}});
 $("runLPButton").addEventListener("click",()=>solveAndShow(false));$("runMILPButton").addEventListener("click",()=>solveAndShow(true));$("runBothButton").addEventListener("click",async()=>{try{await solveAndShow(false,false);await solveAndShow(true,false);refreshAll();openTab("kpiTab");setStatus("LP and MILP completed.","success");}catch(error){setStatus(error.message,"error");}});
+async function solveWithBackend(data, useMILP, solveOptions = {}) {
+  const token =
+    window.OSE_AUTH &&
+    typeof window.OSE_AUTH.getAccessToken === "function"
+      ? window.OSE_AUTH.getAccessToken()
+      : null;
 
-async function solveAndShow(useMILP,refresh=true){if(!state.data)throw new Error("Import or load a workbook first.");if(!state.solverReady)throw new Error("GLPK is still loading or unavailable.");validateData(state.data,$("enforceEchelon").checked);setStatus(`Solving ${useMILP?"MILP":"LP"}…`);await sleep(20);const result=await solveModel(state.data,useMILP);result.source=state.sourceName;result.label=useMILP?"MILP":"LP";if(useMILP)state.milp=result;else state.lp=result;state.current=result;enableResultControls(true);buildAnimationParticles(result);if(refresh)refreshAll();setStatus(`${result.label} solved. TotalCost=${fmt(result.totalCost)}; UsedArcs=${result.KPI.UsedArcs}; OpenNodes=${result.KPI.OpenNodes}.`,"success");return result;}
+  if (!token) {
+    if (
+      window.OSE_AUTH &&
+      typeof window.OSE_AUTH.redirectToAccessGate === "function"
+    ) {
+      window.OSE_AUTH.redirectToAccessGate();
+    }
+
+    throw new Error("Authentication is required.");
+  }
+
+  const response = await fetch(apiUrl("/api/solve"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      data,
+      useMILP,
+      solveOptions
+    })
+  });
+
+  let responseBody = null;
+
+  try {
+    responseBody = await response.json();
+  } catch (error) {
+    throw new Error(
+      `Backend returned an invalid response: HTTP ${response.status}`
+    );
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    sessionStorage.removeItem(
+      window.AUTH_CONFIG?.TOKEN_STORAGE_KEY || "ose_access_token"
+    );
+
+    if (
+      window.OSE_AUTH &&
+      typeof window.OSE_AUTH.redirectToAccessGate === "function"
+    ) {
+      window.OSE_AUTH.redirectToAccessGate();
+    }
+
+    throw new Error("Your login session is invalid or has expired.");
+  }
+
+  if (!response.ok) {
+    const detail =
+      responseBody?.detail ||
+      responseBody?.message ||
+      `Backend error: HTTP ${response.status}`;
+
+    throw new Error(detail);
+  }
+
+  if (!responseBody.ok || !responseBody.result) {
+    throw new Error("The backend did not return a valid optimization result.");
+  }
+
+  return responseBody.result;
+}
+
+async function solveAndShow(useMILP,refresh=true){if(!state.data)throw new Error("Import or load a workbook first.");
+validateData(state.data,$("enforceEchelon").checked);setStatus(`Solving ${useMILP?"MILP":"LP"}…`);await sleep(20);
+const result = await solveWithBackend(
+  state.data,
+  useMILP,
+  {
+    tmlim: 120,
+    mipgap: 0.001
+  }
+);;result.source=state.sourceName;result.label=useMILP?"MILP":"LP";if(useMILP)state.milp=result;else state.lp=result;state.current=result;enableResultControls(true);buildAnimationParticles(result);if(refresh)refreshAll();setStatus(`${result.label} solved. TotalCost=${fmt(result.totalCost)}; UsedArcs=${result.KPI.UsedArcs}; OpenNodes=${result.KPI.OpenNodes}.`,"success");return result;}
 
 async function solveModel(data,useMILP,solveOptions={}){const g=state.glpk,T=data.Arcs,nA=T.length,nN=data.Nodes.length,p=data.ParamMap;const x=T.map((_,i)=>`x_${i}`),y=T.map((_,i)=>`y_${i}`),z=data.Nodes.map((_,i)=>`z_${i}`);const nodeIndex=new Map(data.Nodes.map((n,i)=>[n.Node,i]));
   const modeCap={Road:getParam(p,"K_road",Infinity),Rail:getParam(p,"K_rail",Infinity),Water:getParam(p,"K_water",Infinity),Sea:getParam(p,"K_sea",Infinity)};const modeCO2={Road:getParam(p,"EF_road",0),Rail:getParam(p,"EF_rail",0),Water:getParam(p,"EF_water",0),Sea:getParam(p,"EF_sea",0)};
