@@ -11,8 +11,16 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
-
   <link rel="stylesheet" href="./css/styles.css">
+<style>
+  html.access-pending body {
+    visibility: hidden;
+  }
+</style>
+
+<script>
+  document.documentElement.classList.add("access-pending");
+</script>
 </head>
 <body>
 <div class="app">
@@ -133,12 +141,16 @@
   <div class="footer">Converted from the uploaded MATLAB multi-file Stage-1 / v8 project. Browser results use GLPK and can differ slightly from MATLAB linprog/intlinprog.</div>
 </div>
 
-<script>
-"use strict";
-
-const BUILTIN_DEMO = {"Supply":[{"IP":"IP1","Supply":120},{"IP":"IP2","Supply":100},{"IP":"IP3","Supply":140},{"IP":"IP4","Supply":110},{"IP":"IP5","Supply":95},{"IP":"IP6","Supply":115}],"Demand":[{"DC":"DC1","Demand":70},{"DC":"DC2","Demand":65},{"DC":"DC3","Demand":60},{"DC":"DC4","Demand":55},{"DC":"DC5","Demand":65},{"DC":"DC6","Demand":75},{"DC":"DC7","Demand":60}],"Params":[{"Key":"exportDemand","Value":230},{"Key":"BigM","Value":300},{"Key":"K_road","Value":999999999},{"Key":"K_rail","Value":240},{"Key":"K_water","Value":220},{"Key":"K_sea","Value":200},{"Key":"lambdaCO2","Value":1},{"Key":"Emax","Value":999999999},{"Key":"LC_FixFlow","Value":140},{"Key":"LC2_MinFlow","Value":60},{"Key":"LC2_MaxFlow","Value":180},{"Key":"PORTFEED_MinFlow","Value":40},{"Key":"PORTFEED_MaxFlow","Value":140},{"Key":"ICD_MinFlow","Value":50},{"Key":"ICD_MaxFlow","Value":170},{"Key":"ICD2_MinFlow","Value":30},{"Key":"ICD2_MaxFlow","Value":150},{"Key":"HUB1_MaxFlow","Value":120},{"Key":"HUB2_MaxFlow","Value":110},{"Key":"RAIL1_MinFlow","Value":30},{"Key":"RAIL1_MaxFlow","Value":140},{"Key":"DRYPORT_MinFlow","Value":70},{"Key":"DRYPORT_MaxFlow","Value":180},{"Key":"COAST1_MinFlow","Value":40},{"Key":"COAST1_MaxFlow","Value":150},{"Key":"PORT_MaxFlow","Value":180},{"Key":"PORT2_MaxFlow","Value":170}],"Arcs":[{"From":"IP1","To":"LC","Mode":"Road","UnitCost":30,"Cap":180,"FixedCost":2200,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP1","To":"LC2","Mode":"Road","UnitCost":33,"Cap":160,"FixedCost":2500,"Enabled":1,"IsExport":0,"Notes":"Alternative LC"},{"From":"IP1","To":"PORTFEED","Mode":"Road","UnitCost":31,"Cap":140,"FixedCost":2600,"Enabled":1,"IsExport":0,"Notes":"Feeder route"},{"From":"IP1","To":"ICD","Mode":"Road","UnitCost":27,"Cap":130,"FixedCost":6200,"Enabled":1,"IsExport":0,"Notes":"ICD route"},{"From":"IP1","To":"RAIL1","Mode":"Rail","UnitCost":36,"Cap":120,"FixedCost":8800,"Enabled":1,"IsExport":0,"Notes":"Rail route"},{"From":"IP1","To":"HUB1","Mode":"Road","UnitCost":28,"Cap":110,"FixedCost":4300,"Enabled":1,"IsExport":0,"Notes":"Hub route"},{"From":"IP2","To":"LC","Mode":"Road","UnitCost":31,"Cap":170,"FixedCost":2200,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP2","To":"LC2","Mode":"Road","UnitCost":30,"Cap":170,"FixedCost":2300,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP2","To":"PORTFEED","Mode":"Road","UnitCost":29,"Cap":150,"FixedCost":2500,"Enabled":1,"IsExport":0,"Notes":"Feeder route"},{"From":"IP2","To":"ICD","Mode":"Road","UnitCost":25,"Cap":130,"FixedCost":6000,"Enabled":1,"IsExport":0,"Notes":"ICD route"},{"From":"IP2","To":"ICD2","Mode":"Road","UnitCost":24,"Cap":120,"FixedCost":6100,"Enabled":1,"IsExport":0,"Notes":"ICD2 route"},{"From":"IP2","To":"RAIL1","Mode":"Rail","UnitCost":35,"Cap":120,"FixedCost":8600,"Enabled":1,"IsExport":0,"Notes":"Rail route"},{"From":"IP3","To":"LC","Mode":"Road","UnitCost":29,"Cap":180,"FixedCost":2100,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP3","To":"LC2","Mode":"Road","UnitCost":28,"Cap":180,"FixedCost":2200,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP3","To":"ICD","Mode":"Road","UnitCost":27,"Cap":140,"FixedCost":5900,"Enabled":1,"IsExport":0,"Notes":"ICD route"},{"From":"IP3","To":"HUB1","Mode":"Road","UnitCost":24,"Cap":120,"FixedCost":4200,"Enabled":1,"IsExport":0,"Notes":"Hub route"},{"From":"IP3","To":"HUB2","Mode":"Road","UnitCost":23,"Cap":110,"FixedCost":4300,"Enabled":1,"IsExport":0,"Notes":"Hub route south"},{"From":"IP3","To":"RAIL1","Mode":"Rail","UnitCost":34,"Cap":130,"FixedCost":8400,"Enabled":1,"IsExport":0,"Notes":"Rail route"},{"From":"IP4","To":"LC2","Mode":"Road","UnitCost":30,"Cap":170,"FixedCost":2300,"Enabled":1,"IsExport":0,"Notes":"Backbone"},{"From":"IP4","To":"PORTFEED","Mode":"Road","UnitCost":28,"Cap":150,"FixedCost":2400,"Enabled":1,"IsExport":0,"Notes":"Feeder route"},{"From":"IP4","To":"ICD2","Mode":"Road","UnitCost":25,"Cap":130,"FixedCost":6000,"Enabled":1,"IsExport":0,"Notes":"ICD2 route"},{"From":"IP4","To":"HUB2","Mode":"Road","UnitCost":22,"Cap":120,"FixedCost":4100,"Enabled":1,"IsExport":0,"Notes":"Hub route south"},{"From":"IP4","To":"RAIL1","Mode":"Rail","UnitCost":33,"Cap":120,"FixedCost":8300,"Enabled":1,"IsExport":0,"Notes":"Rail route"},{"From":"IP5","To":"LC","Mode":"Road","UnitCost":27,"Cap":150,"FixedCost":2100,"Enabled":1,"IsExport":0,"Notes":"Northwest to LC"},{"From":"IP5","To":"HUB1","Mode":"Road","UnitCost":23,"Cap":120,"FixedCost":4000,"Enabled":1,"IsExport":0,"Notes":"Northwest hub"},{"From":"IP5","To":"RAIL1","Mode":"Rail","UnitCost":32,"Cap":110,"FixedCost":8200,"Enabled":1,"IsExport":0,"Notes":"Rail route"},{"From":"IP5","To":"ICD","Mode":"Road","UnitCost":26,"Cap":120,"FixedCost":5800,"Enabled":1,"IsExport":0,"Notes":"ICD route"},{"From":"IP6","To":"LC2","Mode":"Road","UnitCost":28,"Cap":150,"FixedCost":2200,"Enabled":1,"IsExport":0,"Notes":"Southeast to LC2"},{"From":"IP6","To":"PORTFEED","Mode":"Road","UnitCost":26,"Cap":140,"FixedCost":2300,"Enabled":1,"IsExport":0,"Notes":"Feeder route"},{"From":"IP6","To":"HUB2","Mode":"Road","UnitCost":22,"Cap":120,"FixedCost":4000,<script src="./js/config.js"></script>
 <script src="./js/config.js"></script>
-<script src="./js/auth-config.js"></script>
-<script src="./js/auth.js"></script>
+<script src="./js/access-guard.js"></script>
 <script src="./js/app.js"></script>
-<script src="./js/app.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const allowed = await window.ACCESS_GUARD.verifyStoredAccess();
+    if (allowed) {
+      document.documentElement.classList.remove("access-pending");
+    }
+  });
+</script>
+</body>
+</html>
