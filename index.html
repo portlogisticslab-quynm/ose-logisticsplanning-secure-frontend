@@ -146,6 +146,39 @@
 <script src="./js/app.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      const guard = window.ACCESS_GUARD;
+
+      if (
+        !guard ||
+        typeof guard.verifyStoredAccess !== "function"
+      ) {
+        window.location.replace(
+          "https://access-logisticsplanning.ose.vn/"
+        );
+        return;
+      }
+
+      const allowed = await guard.verifyStoredAccess();
+
+      if (!allowed) {
+        return;
+      }
+
+      document.documentElement.classList.remove(
+        "access-pending"
+      );
+    } catch (error) {
+      console.error("Access verification failed:", error);
+
+      window.location.replace(
+        "https://access-logisticsplanning.ose.vn/"
+      );
+    }
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
     const allowed = await window.ACCESS_GUARD.verifyStoredAccess();
     if (allowed) {
       document.documentElement.classList.remove("access-pending");
